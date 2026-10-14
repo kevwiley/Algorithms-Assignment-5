@@ -37,7 +37,29 @@ def maximize_deliveries(time_windows):
     # Hint: What greedy choice gives you the most room for future deliveries?
     # Hint: Think about sorting by a specific attribute
     
-    pass  # Delete this and write your code
+
+    #sorts deliveries by end time
+    sorted_deliveries = sorted(
+        time_windows, key=lambda delivery: delivery['end']
+    )
+
+    #checks if no deliveries
+    if not sorted_deliveries:
+        return []
+
+    #selects earliest ending delivery
+    selected_deliveries = [sorted_deliveries[0]['delivery_id']]
+    last_end_time = sorted_deliveries[0]['end']
+
+    #checks remaining deliveries
+    for delivery in sorted_deliveries[1:]:
+
+        #if delivery starts after previous ended select that delivery
+        if delivery['start'] >= last_end_time:
+            selected_deliveries.append(delivery['delivery_id'])
+            last_end_time = delivery['end']
+
+    return selected_deliveries
 
 
 # ============================================================================
@@ -76,7 +98,62 @@ def optimize_truck_load(packages, weight_limit):
     # Hint: What ratio determines which packages are most valuable per pound?
     # Hint: You can take fractions - if you have 5 lbs capacity left and a 10 lb package, take 0.5 of it
     
-    pass  # Delete this and write your code
+    #finds priority to weight ratio
+    packages_with_ratio = []
+
+    for package in packages:
+        #avoid divide by 0
+        if package['weight'] > 0:
+            ratio = package['priority'] / package['weight']
+            packages_with_ratio.append((package, ratio))
+
+    #highest ratios are first
+    sorted_packages = sorted(
+        packages_with_ratio,
+        key=lambda item: item[1],
+        reverse=True
+    )
+
+    #takes packages until truck is full
+    total_priority = 0
+    total_weight = 0
+    selected_packages = []
+
+    for package, ratio in sorted_packages:
+
+        #if package fits in weight limit it is taken
+        if total_weight + package['weight'] <= weight_limit:
+            fraction = 1.0
+            total_weight += package['weight']
+            total_priority += package['priority']
+
+        else:
+            #if package doesn't, takes a fraction
+            remaining = weight_limit - total_weight
+
+            #stops when no space remains
+            if remaining <= 0:
+                break
+
+            fraction = remaining / package['weight']
+            total_weight += remaining
+            total_priority += package['priority'] * fraction
+
+        #appends package and fraction
+        selected_packages.append({
+            'package_id': package['package_id'],
+            'fraction': fraction
+        })
+
+        #stops when truck is full
+        if total_weight >= weight_limit:
+            break
+
+    return {
+        'total_priority': total_priority,
+        'total_weight': total_weight,
+        'packages': selected_packages
+    }
 
 
 # ============================================================================
@@ -112,7 +189,44 @@ def minimize_drivers(deliveries):
     # Hint: How do you know if a delivery overlaps with another?
     # Hint: Can you assign a delivery to an existing driver, or do you need a new one?
     
-    pass  # Delete this and write your code
+
+    #deliveries are sorted to earliest first
+    sorted_deliveries = sorted(
+        deliveries, key=lambda delivery: delivery['start']
+    )
+
+    #will track when drivers are available
+    driver_end_times = []
+    assignments = []
+
+    for delivery in sorted_deliveries:
+
+        #gets an available driver
+        assigned = False
+
+        for i, end_time in enumerate(driver_end_times):
+
+            #checks if driver has finished previous delivery
+            if delivery['start'] >= end_time:
+
+                #updates when driver becomes available
+                driver_end_times[i] = delivery['end']
+
+                #assigns delivery to driver
+                assignments[i].append(delivery['delivery_id'])
+
+                assigned = True
+                break
+
+        #if no driver exists creates a new one
+        if not assigned:
+            driver_end_times.append(delivery['end'])
+            assignments.append([delivery['delivery_id']])
+
+    return {
+        'num_drivers': len(driver_end_times),
+        'assignments': assignments
+    }
 
 
 # ============================================================================
@@ -297,9 +411,9 @@ if __name__ == "__main__":
     
     # Uncomment these as you complete each part:
     
-    # test_package_prioritization()
-    # test_truck_loading()
-    # test_driver_assignment()
-    # benchmark_scenarios()
+    test_package_prioritization()
+    test_truck_loading()
+    test_driver_assignment()
+    benchmark_scenarios()
     
     print("\n⚠ Uncomment the test functions in the main block to run tests!")
